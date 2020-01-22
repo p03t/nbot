@@ -1,0 +1,174 @@
+#!/bin/bash
+
+_BASENAME="$(basename $0)"
+_DEPS="iproute2 iputils-ping isc-dhcp-client lsof openvpn"
+_INSTALL_DEPS_CMD="$_BASENAME install"
+_OVPN=""
+_INTERFACE="eth0"
+
+say() { # (string buffer)
+	if [ -n "$1" ]; then
+		echo "[INFO] $_BASENAME | $1"
+	fi
+}
+sayerr() { # (string buffer)
+	if [ -n "$1" ]; then
+		echo "[FAILURE] $_BASENAME | $1"	
+	fi
+}
+
+depcheck() { 
+	ISGOOD=1
+	for DEP in $_DEPS; do
+		if ! dpkg-query -s $DEP &> /dev/null; then
+			say "$DEP not installed" 
+			ISGOOD=0 
+		fi
+	done	
+	if ((ISGOOD)); then
+		say "All dependencies are installed."
+	else
+		sayerr "There are missing dependencies. \
+				Use $_INSTALL_DEPS_CMD to install them."
+	fi
+}
+
+install() {
+	ISGOOD=0
+	if [ $UID -ne 0 ]; then
+		if dpkg-query -s sudo &> /dev/null; then
+			sudo apt-get install $_DEPS && ISGOOD=1
+		else
+			sayerr "sudo not installed."
+		fi
+	else
+		apt-get install $_DEPS && ISGOOD=1
+	fi
+	if ((ISGOOD)); then
+		say "All dependencies have been installed"
+	else
+		sayerr "Dependencies installation failed"
+	fi
+}
+
+connectivity() {
+	if ping -c 1 -w 15 $(ip route|grep default|cut -d " " -f 3) &> /dev/null; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+procdown() { # (string process)
+	if [ ! -n "$(pidof $1)" ]; then
+		return 1
+	fi
+	TRIES=0
+	while [ -n "$(pidof $1)" ]; do
+		pkill -TERM $1
+		if ((++TRIES>1)); then
+			sleep 0.1
+		fi
+		if ((TRIES > 10)); then
+			pkill -KILL $1
+		fi
+	done
+}
+
+netup() {
+	ip link set $_INTERFACE up
+	dhclient -v $_INTERFACE
+	openvpn $_OVPN &
+}
+
+netdown() {
+	procdown openvpn
+	dhclient -v -r $_INTERFACE
+	procdown dhclient
+	ip link set $_INTERFACE down
+}
+
+verifyroot() {
+	if [ $UID -ne 0 ]; then
+		sayerr "root privileges required to perform this action."
+		exit 1
+	fi
+}
+isroot() {
+	if [ $UID == 0 ]; then
+		return 0
+	else
+		return 1
+	fi
+}
+checksetup() {
+	if [ ! -f "$_OVPN" ]; then
+		sayerr 'Invalid OpenVPN config file ($_OVPN)'
+		exit 1
+	fi
+}
+networkinfo() {
+	echo "CONNECTIVITY"
+	if connectivity; then
+		echo "Connection to Gateway is ALIVE"	
+	else
+		echo "Connection to Gateway is DEAD"
+	fi
+	echo
+	echo "ROUTE"
+	ip route
+	echo
+	if isroot; then
+		echo "INET CONNECTIONS" 
+	else
+		echo "INET CONNECTIONS ($USER)"
+	fi
+	echo "TCP: $(lsof -ni|grep TCP|wc -l)"
+	echo "UDP: $(lsof -ni|grep UDP|wc -l)"
+	echo
+	echo "NETWORK PROCESSES"
+	pgrep -a dhclient
+	pgrep -a openvpn
+	echo
+	if isroot; then
+		echo "IPTABLES"
+		iptables -nvL
+	else
+		say "Limited output for not being root."
+	fi
+}
+
+
+case "$1" in
+	up)
+		verifyroot
+		checksetup
+		netup
+		exit
+		;;
+	down)
+		verifyroot
+		netdown
+		exit
+		;;
+	restart)
+		verifyroot
+		checksetup
+		netdown
+		netup
+		exit
+		;;
+	install)
+		verifyroot
+		install
+		exit
+		;;
+	network)
+		networkinfo
+		exit
+		;;
+	*)
+		sayerr "Usage: $_BASENAME [up|down|restart|network|install]"
+		exit
+		;;
+esac
