@@ -5,10 +5,10 @@ Divisions of nbot also available in this repository:
 - ethbot: Bot for Networking Tasks concerning only Ethernet
 
 
-## ethbot
+### ethbot
 
 Bot for Networking Tasks concerning only Ethernet
 
 Installation:
-    - Clone this repository
-    - Edit variables to your need in CUSTOMIZABLE VARIABLES section
+- Clone this repository
+- Edit variables to your need in CUSTOMIZABLE VARIABLES section
