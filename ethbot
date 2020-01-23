@@ -1,10 +1,18 @@
 #!/bin/bash
 
 _BASENAME="$(basename $0)"
-_DEPS="iproute2 iputils-ping isc-dhcp-client lsof openvpn"
+_DEPS="iproute2 iputils-ping isc-dhcp-client lsof"
 _INSTALL_DEPS_CMD="$_BASENAME install"
+
+# CUSTOMIZABLE VARIABLES
+_USEVPN=0
 _OVPN=""
 _INTERFACE="eth0"
+#
+
+if (( _USEVPN )); then
+	_DEPS+=" openvpn"
+fi
 
 say() { # (string buffer)
 	if [ -n "$1" ]; then
@@ -14,6 +22,13 @@ say() { # (string buffer)
 sayerr() { # (string buffer)
 	if [ -n "$1" ]; then
 		echo "[FAILURE] $_BASENAME | $1"	
+	fi
+}
+usesvpn() {
+	if (( _USEVPN )); then
+		return 0;
+	else
+		return 1;
 	fi
 }
 
@@ -78,11 +93,11 @@ procdown() { # (string process)
 netup() {
 	ip link set $_INTERFACE up
 	dhclient -v $_INTERFACE
-	openvpn $_OVPN &
+	usesvpn && openvpn $_OVPN &
 }
 
 netdown() {
-	procdown openvpn
+	usesvpn && procdown openvpn
 	dhclient -v -r $_INTERFACE
 	procdown dhclient
 	ip link set $_INTERFACE down
@@ -102,7 +117,7 @@ isroot() {
 	fi
 }
 checksetup() {
-	if [ ! -f "$_OVPN" ]; then
+	if usesvpn && [ ! -f "$_OVPN" ]; then
 		sayerr 'Invalid OpenVPN config file ($_OVPN)'
 		exit 1
 	fi
@@ -138,6 +153,7 @@ networkinfo() {
 	fi
 }
 
+checksetup 
 
 case "$1" in
 	up)
