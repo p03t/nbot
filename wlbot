@@ -7,8 +7,8 @@ _CREATE_WPASUPPLICANT_CMD="$_BASENAME config SSID PASSPHRASE FILE_PATH"
 # CUSTOMIZABLE VARIABLES
 _USEVPN=0
 _OVPN=""
-_INTERFACE="wlan0"
-_WPASUPPLICANT=""
+_INTERFACE="eth0"
+_WPASUPPLICANT="/tmp/wpasupfile"
 #
 
 if (( _USEVPN )); then
@@ -129,7 +129,13 @@ checksetup() {
 		sayerr "Use \"$_CREATE_WPASUPPLICANT_CMD\" to create it"
 		exit 1
 	fi
-		
+	if [ -z "$_INTERFACE" ]; then
+		sayerr 'Network Interface not set ($_INTERFACE)'
+		exit 1
+	elif ! ip link show $_INTERFACE &> /dev/null; then
+		sayerr "Network Interface $_INTERFACE is invalid "'($_INTERFACE)'
+		exit 1
+	fi
 }
 networkinfo() {
 	echo "CONNECTIVITY"
@@ -165,16 +171,17 @@ networkinfo() {
 	fi
 }
 create_config() { # (string SSID, string PSK, string FILE_PATH)
-	if (($# < 3)); do
+	if (($# < 3)); then
 		sayerr "Invalid parameters provided (SSID,PSK,FILE_PATH)"	
 		exit 1
-	}
+	fi	
 	echo "network={
 		ssid=$1
 		psk=$2
 		}" > $3
 	say "wpa_supplicant configuration written to $3"
 }
+
 checksetup 
 
 case "$1" in

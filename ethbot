@@ -7,7 +7,7 @@ _INSTALL_DEPS_CMD="$_BASENAME install"
 # CUSTOMIZABLE VARIABLES
 _USEVPN=0
 _OVPN=""
-_INTERFACE="eth0"
+_INTERFACE=""
 #
 
 if (( _USEVPN )); then
@@ -119,6 +119,10 @@ isroot() {
 checksetup() {
 	if usesvpn && [ ! -f "$_OVPN" ]; then
 		sayerr 'Invalid OpenVPN config file ($_OVPN)'
+		exit 1
+	fi
+	if [ -z "$_INTERFACE" ]; then
+		sayerr 'Network Interface not set ($_INTERFACE)'
 		exit 1
 	fi
 }
