@@ -175,10 +175,7 @@ create_config() { # (string SSID, string PSK, string FILE_PATH)
 		sayerr "Invalid parameters provided (SSID,PSK,FILE_PATH)"	
 		exit 1
 	fi	
-	echo "network={
-		ssid=$1
-		psk=$2
-		}" > $3
+	echo -e "network={\n\tssid=\"$1\"\n\tpsk=\"$2\"\n}" > $3
 	say "wpa_supplicant configuration written to $3"
 }
 
@@ -212,8 +209,12 @@ case "$1" in
 		networkinfo
 		exit
 		;;
+	config)
+		create_config $2 $3 $4
+		exit
+		;;
 	*)
-		sayerr "Usage: $_BASENAME [up|down|restart|network|install]"
+		sayerr "Usage: $_BASENAME [up|down|restart|network|install|config]"
 		exit
 		;;
 esac
