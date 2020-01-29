@@ -179,7 +179,6 @@ create_config() { # (string SSID, string PSK, string FILE_PATH)
 	say "wpa_supplicant configuration written to $3"
 }
 
-checksetup 
 
 case "$1" in
 	up)
